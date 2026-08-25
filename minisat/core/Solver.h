@@ -34,6 +34,18 @@ namespace Minisat {
 //=================================================================================================
 // Solver -- the main class:
 
+// Something outside the solver that can call time on a search in progress.
+//
+// terminate() is polled from the search loop, on every conflict and every
+// restart, so it must be cheap and must not throw. Returning true stops the
+// search the same way exhausting a budget does: solveLimited() answers
+// l_Undef, and nothing is left behind that the next solve would inherit.
+class Terminator {
+public:
+    virtual ~Terminator() {}
+    virtual bool terminate() = 0;
+};
+
 class Solver {
 public:
 
@@ -110,6 +122,16 @@ public:
     void    budgetOff();
     void    interrupt();          // Trigger a (potentially asynchronous) interruption of the solver.
     void    clearInterrupt();     // Clear interrupt indicator flag.
+
+    // An embedder's own reason to stop, polled wherever the budgets above are.
+    //
+    // The budgets here count work, which is what a SAT solver can measure for
+    // itself. A caller bounding something else -- wall clock, its own memory
+    // ceiling, a user's cancellation -- knows when it has run out and the
+    // solver does not, so let it say so rather than making it guess a conflict
+    // count. Cleared by passing NULL; the solver does not own it, and it must
+    // outlive the solve.
+    void    connectTerminator(Terminator* t);
 
     // Memory managment:
     //
@@ -235,6 +257,7 @@ protected:
     int64_t             conflict_budget;    // -1 means no budget.
     int64_t             propagation_budget; // -1 means no budget.
     bool                asynch_interrupt;
+    Terminator*         terminator;         // NULL means nobody is asking.
 
     // Main internal methods:
     //
@@ -371,8 +394,10 @@ inline void     Solver::setPropBudget(int64_t x){ propagation_budget = propagati
 inline void     Solver::interrupt(){ asynch_interrupt = true; }
 inline void     Solver::clearInterrupt(){ asynch_interrupt = false; }
 inline void     Solver::budgetOff(){ conflict_budget = propagation_budget = -1; }
+inline void     Solver::connectTerminator(Terminator* t){ terminator = t; }
 inline bool     Solver::withinBudget() const {
     return !asynch_interrupt &&
+           (terminator == NULL || !terminator->terminate()) &&
            (conflict_budget    < 0 || conflicts < (uint64_t)conflict_budget) &&
            (propagation_budget < 0 || propagations < (uint64_t)propagation_budget); }
 
