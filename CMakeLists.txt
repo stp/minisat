@@ -218,6 +218,18 @@ set_target_properties(minisat
 set_target_properties(minisat_simp       PROPERTIES OUTPUT_NAME "minisat")
 
 #--------------------------------------------------------------------------------------------------
+# Tests:
+
+option(MINISAT_BUILD_TESTS "Build the tests, and register them with CTest" OFF)
+if (MINISAT_BUILD_TESTS)
+  enable_testing()
+  add_executable(ExternalPropagatorFuzz test/ExternalPropagatorFuzz.cc)
+  set_target_properties(ExternalPropagatorFuzz PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
+  target_link_libraries(ExternalPropagatorFuzz minisat)
+  add_test(NAME ExternalPropagatorFuzz COMMAND ExternalPropagatorFuzz 1000)
+endif()
+
+#--------------------------------------------------------------------------------------------------
 # Installation targets:
 
 install(TARGETS minisat minisat_core minisat_simp

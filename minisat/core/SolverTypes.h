@@ -223,6 +223,10 @@ public:
 // ClauseAllocator -- a simple class for allocating memory for clauses:
 
 const CRef CRef_Undef = RegionAllocator<uint32_t>::Ref_Undef;
+// The reason of a literal an external propagator implied, until conflict analysis asks for it.
+// Never a real reference: the smallest clause takes two units, so one starting here would end
+// past 2^32, and RegionAllocator::alloc() throws on that overflow.
+const CRef CRef_Lazy  = RegionAllocator<uint32_t>::Ref_Undef - 1;
 class ClauseAllocator
 {
     RegionAllocator<uint32_t> ra;
